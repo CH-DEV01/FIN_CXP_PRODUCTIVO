@@ -1,0 +1,84 @@
+package com.davivienda.factoraje.domain.enums;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+import java.util.Base64;
+
+import org.junit.jupiter.api.Test;
+
+class SystemParameterKeyTest {
+
+    @Test
+    void mailParametersKeepTheUnconfiguredMarkerUntilReplaced() {
+        assertThat(SystemParameterKey.MAILJET_API_KEY.defaultValue()).isEqualTo(SystemParameterKey.UNCONFIGURED);
+        assertThat(SystemParameterKey.MAILJET_API_SECRET.sensitive()).isTrue();
+        assertThat(SystemParameterKey.MAILJET_API_KEY.sensitive()).isTrue();
+        assertThat(SystemParameterKey.MAILJET_FROM_EMAIL.sensitive()).isFalse();
+
+        assertThat(SystemParameterKey.MAILJET_FROM_EMAIL.normalize("CONFIGURAR")).isEqualTo("CONFIGURAR");
+        assertThat(SystemParameterKey.APP_LOGIN_URL.normalize("CONFIGURAR")).isEqualTo("CONFIGURAR");
+        assertThat(SystemParameterKey.MAILJET_FROM_EMAIL.normalize(" Aviso@Banco.COM "))
+                .isEqualTo("aviso@banco.com");
+        assertThat(SystemParameterKey.APP_LOGIN_URL.normalize("https://DevPay.Davivienda.com.sv/login/"))
+                .isEqualTo("https://devpay.davivienda.com.sv/login");
+        assertThat(SystemParameterKey.MAILJET_FROM_NAME.normalize("  Banco Davivienda  "))
+                .isEqualTo("Banco Davivienda");
+        assertThat(SystemParameterKey.MAILJET_API_URL.defaultValue())
+                .isEqualTo("https://api.mailjet.com/v3.1/send");
+        assertThat(SystemParameterKey.MAILJET_API_URL.normalize("https://API.Mailjet.com/v3.1/send"))
+                .isEqualTo("https://api.mailjet.com/v3.1/send");
+    }
+
+    @Test
+    void rejectsAnUnconfiguredMarkerOnParametersThatAlreadyHaveAValue() {
+        assertThatThrownBy(() -> SystemParameterKey.IVA_RATE.normalize("CONFIGURAR"))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> SystemParameterKey.APP_LOGIN_URL.normalize("nota"))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> SystemParameterKey.MAILJET_FROM_EMAIL.normalize("sin-arroba"))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void jwtSecretAcceptsOnlyABase64KeyOfAtLeast32Bytes() {
+        String key = Base64.getEncoder().encodeToString(new byte[32]);
+
+        assertThat(SystemParameterKey.JWT_SECRET.defaultValue()).isEqualTo(SystemParameterKey.UNCONFIGURED);
+        assertThat(SystemParameterKey.JWT_SECRET.sensitive()).isTrue();
+        assertThatThrownBy(() -> SystemParameterKey.JWT_SECRET.normalize("CONFIGURAR"))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThat(SystemParameterKey.JWT_SECRET.normalize(" " + key + " ")).isEqualTo(key);
+        assertThatThrownBy(() -> SystemParameterKey.JWT_SECRET.normalize("no-es-base64"))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> SystemParameterKey.JWT_SECRET.normalize(
+                Base64.getEncoder().encodeToString(new byte[16])))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void cspParametersAcceptOnlyKnownModesAndPlainOrigins() {
+        assertThat(SystemParameterKey.CSP_MODE.normalize(" enforce ")).isEqualTo("ENFORCE");
+        assertThatThrownBy(() -> SystemParameterKey.CSP_MODE.normalize("BLOQUEAR"))
+                .isInstanceOf(IllegalArgumentException.class);
+
+        assertThat(SystemParameterKey.CSP_CONNECT_SRC.normalize("CONFIGURAR")).isEqualTo("CONFIGURAR");
+        assertThat(SystemParameterKey.CSP_CONNECT_SRC.normalize("https://API.davivienda.com.sv:8443/"))
+                .isEqualTo("https://api.davivienda.com.sv:8443");
+        assertThatThrownBy(() -> SystemParameterKey.CSP_CONNECT_SRC.normalize("https://api.davivienda.com.sv; script-src *"))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void urlAndOriginsRejectValuesLongerThan255() {
+        String longHost = "https://" + "a".repeat(250) + ".com";
+        assertThatThrownBy(() -> SystemParameterKey.APP_LOGIN_URL.normalize(longHost))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("255 caracteres");
+
+        String longOrigins = "https://one.example," + "https://" + "b".repeat(240) + ".com";
+        assertThatThrownBy(() -> SystemParameterKey.CORS_ALLOWED_ORIGINS.normalize(longOrigins))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("255 caracteres");
+    }
+}
