@@ -93,8 +93,8 @@ public class SecurityHeadersFilter extends OncePerRequestFilter {
                 "default-src 'self'",
                 "script-src 'self'",
                 // SweetAlert2 inyecta <style> en tiempo de ejecución y React usa style={...}.
-                "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-                "font-src 'self' https://fonts.gstatic.com",
+                "style-src 'self' 'unsafe-inline'",
+                "font-src 'self'",
                 "img-src 'self' data: blob:",
                 "connect-src 'self' " + connectSrc,
                 "frame-ancestors 'self' https://*.davivienda.com.sv",

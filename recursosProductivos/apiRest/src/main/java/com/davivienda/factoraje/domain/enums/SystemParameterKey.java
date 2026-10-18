@@ -34,7 +34,7 @@ public enum SystemParameterKey {
     // El máximo debe coincidir con spring.servlet.multipart.max-file-size.
     UPLOAD_MAX_FILE_SIZE_MB(ValueType.INTEGER, "5", "1", "50"),
     UPLOAD_MAX_ROWS(ValueType.INTEGER, "5000", "1", "100000"),
-    CORS_ALLOWED_ORIGINS(ValueType.ORIGINS, "http://localhost:5173,https://devpay.davivienda.com.sv", null, null),
+    CORS_ALLOWED_ORIGINS(ValueType.ORIGINS, "https://devpay.davivienda.com.sv", null, null),
     JWT_EXPIRATION_MINUTES(ValueType.INTEGER, "1440", "5", "10080"),
     SESSION_IDLE_TIMEOUT_MINUTES(ValueType.INTEGER, "15", "1", "480"),
     // Cookie de sesión compartida con la app de financiamiento, que lee estos mismos
@@ -52,6 +52,13 @@ public enum SystemParameterKey {
     // MailjetTransport arma el cuerpo de la API v3.1; la versión de la URL debe coincidir.
     MAILJET_API_URL(ValueType.URL, "https://api.mailjet.com/v3.1/send", false),
     APP_LOGIN_URL(ValueType.URL, "CONFIGURAR", false),
+    // Servicio de Davivienda que valida el OTC del handoff. Cambia por ambiente.
+    PAY_DAVIVIENDA_URL(ValueType.URL, "CONFIGURAR", false),
+    // Credenciales del handoff. El portal presenta BEARER_TOKEN y APP_CODE;
+    // PAY_BEARER_TOKEN autoriza la validación del OTC en Davivienda.
+    BEARER_TOKEN(ValueType.TEXT, "CONFIGURAR", true),
+    PAY_BEARER_TOKEN(ValueType.TEXT, "CONFIGURAR", true),
+    APP_CODE(ValueType.TEXT, "CONFIGURAR", true),
     // Content Security Policy que envía el Web Server. Los valores se validan aquí porque
     // el administrador del sistema los edita desde la Core API.
     CSP_MODE(ValueType.CSP_MODE, "REPORT_ONLY", false),
@@ -112,15 +119,9 @@ public enum SystemParameterKey {
         return Arrays.stream(values()).filter(k -> k.name().equals(key)).findFirst();
     }
 
-    /**
-     * Secretos que existen en la tabla pero no en este enum, porque los lee el SSO
-     * directamente por su llave.
-     */
-    private static final Set<String> EXTERNAL_SECRETS = Set.of("BEARER_TOKEN", "PAY_BEARER_TOKEN", "APP_CODE");
-
     /** El valor no debe salir en los logs ni en las respuestas de la API. */
     public static boolean isSensitive(String key) {
-        return EXTERNAL_SECRETS.contains(key) || find(key).map(SystemParameterKey::sensitive).orElse(false);
+        return find(key).map(SystemParameterKey::sensitive).orElse(false);
     }
 
     /**

@@ -16,6 +16,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.HttpStatusCodeException;
+import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestTemplate;
 
 import com.davivienda.factoraje.domain.entities.PendingSessionModel;
@@ -25,6 +26,7 @@ import com.davivienda.factoraje.domain.enums.GeneralStatusEnum;
 import com.davivienda.factoraje.domain.enums.SystemParameterKey;
 import com.davivienda.factoraje.dto.sso.DataSession;
 import com.davivienda.factoraje.dto.sso.HandoffDTOResponse;
+import com.davivienda.factoraje.dto.sso.OtcDTORequest;
 import com.davivienda.factoraje.dto.sso.OtcDTOResponse;
 import com.davivienda.factoraje.infrastructure.exception.BusinessException;
 import com.davivienda.factoraje.infrastructure.exception.ResourceNotFoundException;
@@ -74,19 +76,22 @@ public class SsoServiceImpl implements SsoService {
 
         try {
             // 1. CARGA DE PARÁMETROS (Configuración)
-            SystemParameterModel myBearerToken = parameterRepository.findByKey("BEARER_TOKEN")
+            SystemParameterModel myBearerToken = parameterRepository.findByKey(SystemParameterKey.BEARER_TOKEN.name())
                     .orElseThrow(() -> new RuntimeException("Bearer token not found"));
 
-            SystemParameterModel payBearerToken = parameterRepository.findByKey("PAY_BEARER_TOKEN")
+            SystemParameterModel payBearerToken = parameterRepository
+                    .findByKey(SystemParameterKey.PAY_BEARER_TOKEN.name())
                     .orElseThrow(() -> new RuntimeException("Pay bearer token not found"));
 
-            SystemParameterModel myAppCode = parameterRepository.findByKey("APP_CODE")
+            SystemParameterModel myAppCode = parameterRepository.findByKey(SystemParameterKey.APP_CODE.name())
                     .orElseThrow(() -> new RuntimeException("App code not found"));
 
-            SystemParameterModel payDaviviendaUrl = parameterRepository.findByKey("PAY_DAVIVIENDA_URL")
+            SystemParameterModel payDaviviendaUrl = parameterRepository
+                    .findByKey(SystemParameterKey.PAY_DAVIVIENDA_URL.name())
                     .orElseThrow(() -> new RuntimeException("Pay Davivienda URL not found"));
 
-            log.info("url para petición: {}", payDaviviendaUrl.getValue());
+            String daviviendaUrl = payDaviviendaUrl.getValue();
+            log.info("url para petición: {}", daviviendaUrl);
 
             // 2. VALIDACIONES DE SEGURIDAD
             // Sin este control, "Bearer CONFIGURAR" pasaría la validación en una base recién instalada.
@@ -117,14 +122,13 @@ public class SsoServiceImpl implements SsoService {
             headers.set("X-Authorization", "Bearer " + payBearerToken.getValue());
             headers.setAccept(List.of(MediaType.APPLICATION_JSON));
 
-            String jsonBody = "{\"otc\":\"" + otc + "\"}";
-            HttpEntity<String> requestEntity = new HttpEntity<>(jsonBody, headers);
+            HttpEntity<OtcDTORequest> requestEntity = new HttpEntity<>(new OtcDTORequest(otc), headers);
 
             log.info("[Handoff-External] Consultando validación en Davivienda...");
 
             // 4. LLAMADA AL SERVICIO EXTERNO
             ResponseEntity<OtcDTOResponse> response = restTemplate.exchange(
-                    payDaviviendaUrl.getValue(),
+                    daviviendaUrl,
                     HttpMethod.POST,
                     requestEntity,
                     OtcDTOResponse.class);
@@ -178,6 +182,11 @@ public class SsoServiceImpl implements SsoService {
                     e.getStatusCode(), e.getResponseBodyAsString());
             throw new RuntimeException("Error en comunicación con proveedor externo");
 
+        } catch (ResourceAccessException e) {
+            // AQUÍ CAEN: Pay Davivienda no conecta o no responde dentro de los 15 segundos.
+            log.error("[Handoff-External-Error] Pay Davivienda no respondió a tiempo", e);
+            throw new RuntimeException("Error en comunicación con proveedor externo");
+
         } catch (Exception e) {
             // AQUÍ CAEN: NullPointer, errores de base de datos, errores inesperados.
             log.error("[Handoff-Critical-Error] Error no controlado en el proceso", e);
@@ -213,21 +222,29 @@ public class SsoServiceImpl implements SsoService {
         PendingSessionModel session = pendingSessionService.consume(sessionToken);
 
         if (session.getExpiresAt().isBefore(LocalDateTime.now())) {
+            log.warn("[Login] Sesión rechazada: el token de activación expiró");
             throw new RuntimeException("session_expired");
         }
 
         // Misma norma que al registrar (requireEmail → solo trim): se conserva mayúsculas y guiones.
         UserModel user = userRepository.findByEmail(IdentifierNormalizer.trimmed(session.getUserEmail()))
-                .orElseThrow(() -> new ResourceNotFoundException("Usuario no registrado en el sistema local."));
+                .orElseThrow(() -> {
+                    log.warn("[Login] Sesión rechazada: el usuario no está registrado");
+                    return new ResourceNotFoundException("Usuario no registrado en el sistema local.");
+                });
 
         if (user.getStatus() != GeneralStatusEnum.ACTIVE) {
+            log.warn("[Login] Sesión rechazada para el usuario {}: se encuentra inactivo", user.getId());
             throw new UnauthorizedAccessException("El usuario se encuentra inactivo.");
         }
         if (!user.isEnabled()) {
+            log.warn("[Login] Sesión rechazada para el usuario {}: su entidad se encuentra inactiva", user.getId());
             throw new UnauthorizedAccessException(
                     "La entidad a la que pertenece el usuario se encuentra inactiva. Contacte al administrador.");
         }
 
-        return jwtService.generateToken(user);
+        String jwt = jwtService.generateToken(user);
+        log.info("[Login] Sesión iniciada por el usuario {}", user.getId());
+        return jwt;
     }
 }

@@ -46,9 +46,13 @@ class SecurityHeadersFilterTest {
         assertThat(response.getHeader(SecurityHeadersFilter.ENFORCE_HEADER)).isNull();
         assertThat(response.getHeader(SecurityHeadersFilter.REPORT_ONLY_HEADER))
                 .contains("script-src 'self';")
+                .contains("style-src 'self' 'unsafe-inline';")
+                .contains("font-src 'self';")
                 .contains("connect-src 'self' https:;")
                 .contains("frame-ancestors 'self' https://*.davivienda.com.sv")
-                .contains("object-src 'none'");
+                .contains("object-src 'none'")
+                .doesNotContain("fonts.googleapis.com")
+                .doesNotContain("fonts.gstatic.com");
     }
 
     @Test

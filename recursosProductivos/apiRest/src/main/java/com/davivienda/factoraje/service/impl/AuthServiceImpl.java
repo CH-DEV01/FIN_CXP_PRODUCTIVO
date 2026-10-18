@@ -15,6 +15,7 @@ import com.davivienda.factoraje.repository.RoleRouteRepository;
 import com.davivienda.factoraje.repository.UserRepository;
 import com.davivienda.factoraje.service.AuthService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 import java.time.Instant;
 import java.util.List;
@@ -24,6 +25,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class AuthServiceImpl implements AuthService {
 
     private static final String UNAUTHORIZED_ROUTE = "/unauthorized";
@@ -76,7 +78,9 @@ public class AuthServiceImpl implements AuthService {
     @Override
     @Transactional
     public void logout() {
-        currentUserService.find()
-                .ifPresent(user -> userRepository.revokeSessions(user.getId(), Instant.now()));
+        currentUserService.find().ifPresent(user -> {
+            userRepository.revokeSessions(user.getId(), Instant.now());
+            log.info("[Logout] Sesión cerrada por el usuario {}", user.getId());
+        });
     }
 }
