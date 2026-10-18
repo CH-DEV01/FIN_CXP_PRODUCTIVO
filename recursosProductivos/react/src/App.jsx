@@ -30,7 +30,6 @@ import DocumentLog from "./pages/supplier/DocumentLog";
 import ResourceNotFound from "./pages/shared-pages/ResourceNotFound";
 import Unauthorized from "./pages/shared-pages/Unauthorized";
 import SelectAgreementToStart from "./pages/shared-pages/SelectAgreementToStart";
-import Login from "./pages/auth/Login";
 import Layout from "./components/layouts/MainLayout";
 
 /** Traduce el componentName que envía el backend en user.routes al componente real. */
@@ -85,6 +84,13 @@ const getLandingRoute = (user) => {
 
 const DynamicRedirect = () => {
   const { user, isLoading } = useAuth();
+
+  useEffect(() => {
+    if (!user && !isLoading) {
+      goToPortal();
+    }
+  }, [user, isLoading]);
+
   if (isLoading) return <LoadingSpinner />;
   if (!user) return null;
   return <Navigate to={getLandingRoute(user)} replace />;
@@ -115,7 +121,6 @@ const AppContent = () => {
     <Routes>
       <Route path={ROUTES.ROOT} element={<DynamicRedirect />} />
       <Route path={ROUTES.UNAUTHORIZED} element={<Unauthorized />} />
-      <Route path={ROUTES.LOGIN} element={<Login />} />
 
       {/* Selector de convenio (fuera del Layout; landing del proveedor) */}
       <Route element={<ProtectedRoute allowedRoles={[ROLES.SUPPLIER]} />}>

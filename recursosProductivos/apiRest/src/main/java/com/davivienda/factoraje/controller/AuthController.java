@@ -29,16 +29,6 @@ public class AuthController {
     private final SessionCookies sessionCookies;
     private final SessionTokens sessionTokens;
 
-    public record SsoLoginRequest(String dui) {}
-
-    @PostMapping("/sso-login")
-    public ResponseEntity<ApiResponse<SessionWindowDTO>> login(@RequestBody SsoLoginRequest request,
-            HttpServletRequest httpRequest, HttpServletResponse httpResponse) {
-        String jwt = authService.authenticateViaSSO(request.dui());
-        sessionCookies.write(httpRequest, httpResponse, jwt);
-        return ResponseEntity.ok(ApiResponse.success(jwtService.window(jwt), "Sesión establecida correctamente"));
-    }
-
     @GetMapping("/me")
     public ResponseEntity<ApiResponse<UserProfileResponseDTO>> getMe(HttpServletRequest httpRequest) {
         UserProfileResponseDTO profile = authService.getCurrentUserProfile(currentToken(httpRequest));

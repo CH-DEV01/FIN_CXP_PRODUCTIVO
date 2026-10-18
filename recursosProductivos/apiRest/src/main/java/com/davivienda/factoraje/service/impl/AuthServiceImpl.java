@@ -8,11 +8,8 @@ import com.davivienda.factoraje.dto.auth.MenuDTO;
 import com.davivienda.factoraje.dto.auth.RouteDTO;
 import com.davivienda.factoraje.dto.auth.UserProfileResponseDTO;
 import com.davivienda.factoraje.infrastructure.config.SystemParameters;
-import com.davivienda.factoraje.infrastructure.exception.ResourceNotFoundException;
-import com.davivienda.factoraje.infrastructure.exception.UnauthorizedAccessException;
 import com.davivienda.factoraje.infrastructure.security.CurrentUserService;
 import com.davivienda.factoraje.infrastructure.security.JwtService;
-import com.davivienda.factoraje.infrastructure.util.IdentifierNormalizer;
 import com.davivienda.factoraje.repository.RoleMenuRepository;
 import com.davivienda.factoraje.repository.RoleRouteRepository;
 import com.davivienda.factoraje.repository.UserRepository;
@@ -37,26 +34,6 @@ public class AuthServiceImpl implements AuthService {
     private final JwtService jwtService;
     private final SystemParameters systemParameters;
     private final CurrentUserService currentUserService;
-
-    @Override
-    public String authenticateViaSSO(String dui) {
-
-        // TODO: En producción, aquí deberías validar primero el token externo del SSO
-        // antes de confiar ciegamente en el DUI proporcionado en la petición.
-
-        UserModel user = userRepository.findByDui(IdentifierNormalizer.withoutSeparators(dui))
-                .orElseThrow(() -> new ResourceNotFoundException("Usuario no registrado en el sistema local."));
-
-        if (user.getStatus() != GeneralStatusEnum.ACTIVE) {
-            throw new UnauthorizedAccessException("El usuario se encuentra inactivo.");
-        }
-        if (!user.isEnabled()) {
-            throw new UnauthorizedAccessException(
-                    "La entidad a la que pertenece el usuario se encuentra inactiva. Contacte al administrador.");
-        }
-
-        return jwtService.generateToken(user);
-    }
 
     @Override
     @Transactional(readOnly = true)

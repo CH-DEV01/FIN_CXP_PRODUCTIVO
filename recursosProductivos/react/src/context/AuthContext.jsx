@@ -7,7 +7,7 @@ import api, {
   markSessionActive,
   markSessionEnded,
 } from "../services/api";
-import { API_BASE_URL, API_URL } from "../constants/apiConstants";
+import { API_URL } from "../constants/apiConstants";
 import { goToPortal, portalUrl } from "../services/portal";
 import { applyServerTime, nowMs } from "../utils/sessionClock";
 import { shouldClearSessionOnProfileError } from "../utils/sessionProfileError";
@@ -238,23 +238,6 @@ export const AuthProvider = ({ children }) => {
     return () => window.removeEventListener("storage", onStorage);
   }, [user, endSession]);
 
-  const login = useCallback(
-    async (payload) => {
-      setIsLoading(true);
-      try {
-        const response = await axios.post("/api/v1/auth/sso-login", payload, {
-          ...SESSION_REQUEST_CONFIG,
-          baseURL: API_BASE_URL,
-        });
-        await fetchUserProfile();
-        return response;
-      } finally {
-        setIsLoading(false);
-      }
-    },
-    [fetchUserProfile],
-  );
-
   const logout = useCallback(async () => {
     endingRef.current = true;
     markSessionEnded();
@@ -275,8 +258,8 @@ export const AuthProvider = ({ children }) => {
   );
 
   const value = useMemo(
-    () => ({ user, userData, login, logout, isLoading }),
-    [user, userData, login, logout, isLoading],
+    () => ({ user, userData, logout, isLoading }),
+    [user, userData, logout, isLoading],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

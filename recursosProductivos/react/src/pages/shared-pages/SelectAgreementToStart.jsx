@@ -59,12 +59,6 @@ const SelectAgreementToStart = () => {
 
     try {
       saveAgreement(selectedAgreementToSave);
-
-      if (!user) {
-        navigate(ROUTES.LOGIN);
-        return;
-      }
-
       navigate(user.defaultRoute || ROUTES.UNAUTHORIZED);
     } catch (e) {
       console.error("Error saving agreement:", e);

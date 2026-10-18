@@ -10,6 +10,7 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -290,6 +291,18 @@ class SecurityConfigTest {
     @Test
     void unlistedEndpointIsDeniedEvenForAdmin() throws Exception {
         mockMvc.perform(get("/api/v1/unlisted").header(HttpHeaders.AUTHORIZATION, bearer(Roles.ADMIN)))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void directSsoLoginByDuiIsDenied() throws Exception {
+        String body = "{\"dui\":\"012345678\"}";
+
+        mockMvc.perform(post("/api/v1/auth/sso-login").contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isUnauthorized());
+
+        mockMvc.perform(post("/api/v1/auth/sso-login").header(HttpHeaders.AUTHORIZATION, bearer(Roles.ADMIN))
+                        .contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isForbidden());
     }
 

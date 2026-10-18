@@ -9,7 +9,7 @@ export const SESSION_REQUEST_CONFIG = {
   headers: { "X-Requested-With": "XMLHttpRequest" },
 };
 
-// El login usa la instancia global de axios.
+// Logout y otras llamadas fuera de `api` usan la instancia global de axios.
 axios.interceptors.response.use((response) => response, redactAxiosError);
 
 const api = axios.create({
